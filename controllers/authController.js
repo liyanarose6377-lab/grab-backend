@@ -20,6 +20,17 @@ exports.signup = async (req, res) => {
       return res.status(400).json({ message: "Phone number already registered" });
     }
 
+      // ⭐ CHECK IF THIS INVITATION CODE ALREADY EXISTS
+      if (invitationCode && invitationCode.trim() !== "") {
+        const alreadyUsed = await User.findOne({ invitationCode });
+  
+        if (alreadyUsed) {
+          return res.status(400).json({
+            message: "This invitation code is already registered. Try another one."
+          });
+        }
+      }
+
     // Hash passwords
     const hashedLogin = await bcrypt.hash(loginPassword, 10);
     const hashedWithdraw = await bcrypt.hash(withdrawPassword, 10);
