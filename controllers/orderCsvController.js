@@ -21,7 +21,14 @@ exports.uploadCsvController = async (req, res) => {
         totalProfit: row.totalProfit,
         image: row.image || "",
         orderType: row.orderType || "single",
-        images: row.images ? row.images.split(",") : [],
+        images: row.images
+        ? row.images.split(",").map(img =>
+            img.trim().startsWith("http")
+              ? img.trim()
+              : `${req.protocol}://${req.get("host")}/uploads/orders/${img.trim()}`
+          )
+        : [],
+      
         invitationCode,
         orderIndex: index++
       });

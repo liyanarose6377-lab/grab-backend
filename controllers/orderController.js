@@ -106,50 +106,51 @@ exports.createOrder = async (req, res) => {
 ====================================================================== */
 exports.getOrdersByPlatform = async (req, res) => {
     try {
-        const platform = req.params.platform;
-        const user = req.user;
-        const userCode = user ? user.invitationCode : null;
-
-        // Base query: Platform + active orders
-        let query;
-
-        if (userCode) {
-            // Only this user's orders
-            query = {
-                platform,
-                status: "active",
-                invitationCode: userCode
-            };
-        } else {
-            // Only public orders
-            query = {
-                platform,
-                status: "active",
-                invitationCode: null
-            };
+      const platform = req.params.platform;
+      const user = req.user;
+      const userCode = user ? user.invitationCode : null;
+  
+      // Build query
+      let query;
+      if (userCode) {
+        query = { platform, status: "active", invitationCode: userCode };
+      } else {
+        query = { platform, status: "active", invitationCode: null };
+      }
+  
+      const orders = await Order.find(query).sort({ orderIndex: 1 }).lean();
+  
+      // Map safely — use "order" variable name everywhere to avoid confusion
+      const mapped = orders.map(order => {
+        // SINGLE: if it's already a full URL (CSV) keep it, otherwise convert filename -> full URL
+        if (order.image) {
+          if (!order.image.startsWith("http")) {
+            order.image = `${req.protocol}://${req.get("host")}/uploads/orders/${order.image}`;
+          }
         }
-
-
-        const orders = await Order.find(query).sort({ orderIndex: 1 }).lean();
-
-        // Add URLs
-        const mapped = orders.map((o) => {
-            if (o.image) o.image = buildFileUrl(req, o.image);
-            if (o.images?.length)
-                o.images = o.images.map((f) => buildFileUrl(req, f));
-            return o;
-        });
-
-        return res.json({
-            success: true,
-            orders: mapped.sort((a, b) => a.orderIndex - b.orderIndex)
-        });
-
+  
+        // COMBINE: map each image the same way
+        if (order.images && Array.isArray(order.images) && order.images.length > 0) {
+          order.images = order.images.map(img => {
+            return typeof img === "string" && img.startsWith("http")
+              ? img
+              : `${req.protocol}://${req.get("host")}/uploads/orders/${img}`;
+          });
+        }
+  
+        return order;
+      });
+  
+      return res.json({
+        success: true,
+        orders: mapped.sort((a, b) => a.orderIndex - b.orderIndex),
+      });
     } catch (err) {
-        console.error("getOrdersByPlatform error:", err);
-        return res.status(500).json({ success: false, message: "Server error" });
+      console.error("getOrdersByPlatform error:", err);
+      return res.status(500).json({ success: false, message: "Server error" });
     }
-};
+  };
+  
 
 /* ======================================================================
    USER SUBMIT ORDER
