@@ -20,24 +20,32 @@ exports.signup = async (req, res) => {
       return res.status(400).json({ message: "Phone number already registered" });
     }
 
-      // ⭐ CHECK IF THIS INVITATION CODE ALREADY EXISTS
-      if (invitationCode && invitationCode.trim() !== "") {
-        const alreadyUsed = await User.findOne({ invitationCode });
-  
-        if (alreadyUsed) {
-          return res.status(400).json({
-            message: "This invitation code is already registered. Try another one."
-          });
-        }
+    // ⭐ Invitation Code is required
+    if (!invitationCode || invitationCode.trim() === "") {
+      return res.status(400).json({
+        message: "Invitation code is required"
+      });
+    }
+
+    // ⭐ CHECK IF THIS INVITATION CODE ALREADY EXISTS
+    if (invitationCode && invitationCode.trim() !== "") {
+      const alreadyUsed = await User.findOne({ invitationCode });
+
+      if (alreadyUsed) {
+        return res.status(400).json({
+          message: "This invitation code is already registered. Try another one."
+        });
       }
+    }
+
 
     // Hash passwords
     const hashedLogin = await bcrypt.hash(loginPassword, 10);
     const hashedWithdraw = await bcrypt.hash(withdrawPassword, 10);
 
     // Auto-generate invitation code if missing
-    const finalInviteCode = invitationCode?.trim() !== "" 
-      ? invitationCode 
+    const finalInviteCode = invitationCode?.trim() !== ""
+      ? invitationCode
       : Math.random().toString(36).slice(2, 8);
 
     // Create new user
@@ -95,7 +103,7 @@ exports.login = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
-    
+
 
     res.json({
       message: "Login successful",
